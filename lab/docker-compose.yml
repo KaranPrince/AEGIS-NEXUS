@@ -1,0 +1,54 @@
+version: "3.9"
+
+networks:
+  aegis-net:
+    external: true
+
+volumes:
+  jenkins_data:
+  k3s_data:
+
+services:
+
+  mgmt-node:
+    image: ubuntu:22.04
+    container_name: aegis-mgmt
+    tty: true
+    stdin_open: true
+    command: sleep infinity
+    networks:
+      - aegis-net
+    volumes:
+      - ./mgmt:/mgmt
+    restart: unless-stopped
+
+  k3s-server:
+    image: rancher/k3s:v1.29.1-k3s1
+    container_name: aegis-k3s
+    privileged: true
+    command: server
+    environment:
+      - K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml
+      - K3S_KUBECONFIG_MODE=666
+    volumes:
+      - k3s_data:/var/lib/rancher/k3s
+      - ./mgmt:/output
+    networks:
+      - aegis-net
+    ports:
+      - "6443:6443"
+    restart: unless-stopped
+
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: aegis-jenkins
+    user: root
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - aegis-net
+    restart: unless-stopped
